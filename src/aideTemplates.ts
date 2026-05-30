@@ -60,7 +60,7 @@ export function getAideTemplates(config: CrosshairConfig): { name: string; path:
       name: 'MainActivity.java',
       path: 'app/src/main/java/com/aide/customcrosshair/MainActivity.java',
       language: 'java',
-      description: 'Activity chính cung cấp giao diện bật/tắt tâm ảo và yêu cầu quyền SYSTEM_ALERT_WINDOW.',
+      description: 'Activity chính cung cấp giao diện bật/tắt tâm ảo, kiểm tra và cấp quyền SYSTEM_ALERT_WINDOW đồng thời tích hợp trình tăng tốc & khởi chạy nhanh các game di động phổ biến ngay lúc kích hoạt tâm ảo.',
       content: `package com.aide.customcrosshair;
 
 import android.app.Activity;
@@ -95,6 +95,26 @@ public class MainActivity extends Activity {
                 }
             }
         });
+
+        // Ánh xạ các nút khởi chạy nhanh game liên kết tâm ngắm
+        setupGameLaunchButton(R.id.btn_launch_ffth, "com.dts.freefireth");
+        setupGameLaunchButton(R.id.btn_launch_ffmax, "com.dts.freefiremax");
+        setupGameLaunchButton(R.id.btn_launch_pubgvn, "com.vng.pubgmobile");
+        setupGameLaunchButton(R.id.btn_launch_pubgglobal, "com.tencent.ig");
+        setupGameLaunchButton(R.id.btn_launch_lq, "com.garena.game.kgvn");
+        setupGameLaunchButton(R.id.btn_launch_codm, "com.vng.codm");
+    }
+
+    private void setupGameLaunchButton(int buttonId, final String packageName) {
+        Button btn = findViewById(buttonId);
+        if (btn != null) {
+            btn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    launchGameWithOverlay(packageName);
+                }
+            });
+        }
     }
 
     private boolean checkOverlayPermission() {
@@ -124,13 +144,38 @@ public class MainActivity extends Activity {
             btnToggle.setText("TẮT TÂM ẢO");
             btnToggle.setBackgroundColor(0xFFFF3333); // Red
             isServiceRunning = true;
-            Toast.makeText(this, "Đã khởi chạy Tâm Ảo!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Đã khởi chạy dịch vụ tâm nổi!", Toast.LENGTH_SHORT).show();
         } else {
             stopService(intent);
             btnToggle.setText("BẬT TÂM ẢO");
-            btnToggle.setBackgroundColor(0xFF33CC33); // Green
+            btnToggle.setBackgroundColor(0xFF10B981); // Emerald Green
             isServiceRunning = false;
-            Toast.makeText(this, "Đã tắt Tâm Ảo!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Đã tắt dịch vụ tâm nổi!", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void launchGameWithOverlay(String packageName) {
+        // 1. Hãy chắc chắn đã bật dịch vụ vẽ đè tâm ảo
+        if (!isServiceRunning) {
+            if (checkOverlayPermission()) {
+                toggleCrosshairService();
+            } else {
+                requestOverlayPermission();
+                return;
+            }
+        }
+        
+        // 2. Tiến hành khởi chạy ứng dụng/game
+        try {
+            Intent launchIntent = getPackageManager().getLaunchIntentForPackage(packageName);
+            if (launchIntent != null) {
+                startActivity(launchIntent);
+                Toast.makeText(this, "Đã khởi động tâm đè & đang mở game nhanh...", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Không tìm thấy game '" + packageName + "' trên điện thoại này! Hãy tải game về trước nhé.", Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "Lỗi khi mở nhanh game: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -141,7 +186,7 @@ public class MainActivity extends Activity {
             if (checkOverlayPermission()) {
                 toggleCrosshairService();
             } else {
-                Toast.makeText(this, "Cấp quyền thất bại! Không thể bật tâm ảo.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Cấp quyền vẽ đè thất bại! Không thể tự kích hoạt tâm ảo.", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -865,61 +910,180 @@ public class CrosshairView extends View {
       name: 'activity_main.xml',
       path: 'app/src/main/res/layout/activity_main.xml',
       language: 'xml',
-      description: 'Giao diện chính chứa các điều khiển và nút bấm khởi chạy, cực kỳ dễ dùng và trực quan trên điện thoại.',
+      description: 'Giao diện chính chứa các điều khiển bật/tắt tâm và lưới sút/khởi động nhanh các game Blockbuster trực tiếp ngay trên điện thoại cực trực quan.',
       content: `<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_match"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:padding="24dp"
-    android:background="#121212">
+    android:fillViewport="true"
+    android:background="#0F172A">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="TÂM ẢO GAME MOBILE"
-        android:textColor="#FFFFFF"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="8dp" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Mã nguồn biên dịch hoàn hảo trên điện thoại bằng AIDE"
-        android:textColor="#888888"
-        android:textSize="12sp"
-        android:layout_marginBottom="40dp"
-        android:gravity="center" />
-
-    <View
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:background="@android:drawable/ic_menu_compass"
-        android:layout_marginBottom="40dp" />
-
-    <Button
-        android:id="@+id/btn_toggle"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:text="BẬT TÂM ẢO"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:background="#33CC33"
-        android:backgroundTint="#33CC33"
-        android:elevation="4dp" />
-
-    <TextView
-        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="* Hãy đảm bảo đã cấp Quyền vẽ lên ứng dụng khác khi bấm nút."
-        android:textColor="#FF9900"
-        android:textSize="12sp"
-        android:layout_marginTop="20dp"
-        android:gravity="center" />
-</LinearLayout>`
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="TÂM ẢO PRO MAKER"
+            android:textColor="#10B981"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Bản Quyền Độc Quyển Thiết Kế Bởi Đình Quang"
+            android:textColor="#94A3B8"
+            android:textSize="11sp"
+            android:layout_marginBottom="24dp"
+            android:gravity="center" />
+
+        <View
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:background="@android:drawable/ic_menu_compass"
+            android:layout_marginBottom="24dp" />
+
+        <Button
+            android:id="@+id/btn_toggle"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="BẬT TÂM ẢO"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:background="#10B981"
+            android:backgroundTint="#10B981"
+            android:elevation="4dp"
+            android:layout_marginBottom="24dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⚡ KHỞI CHẠY GAME & LÊN TÂM NHANH"
+            android:textColor="#38BDF8"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_gravity="left"
+            android:layout_marginBottom="12dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="2"
+                android:layout_marginBottom="10dp">
+
+                <Button
+                    android:id="@+id/btn_launch_ffth"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginRight="5dp"
+                    android:text="FF Thường"
+                    android:textSize="11sp"
+                    android:textColor="#FFFFFF"
+                    android:background="#EF4444"
+                    android:backgroundTint="#EF4444" />
+
+                <Button
+                    android:id="@+id/btn_launch_ffmax"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginLeft="5dp"
+                    android:text="Free Fire MAX"
+                    android:textSize="11sp"
+                    android:textColor="#FFFFFF"
+                    android:background="#F97316"
+                    android:backgroundTint="#F97316" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="2"
+                android:layout_marginBottom="10dp">
+
+                <Button
+                    android:id="@+id/btn_launch_pubgvn"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginRight="5dp"
+                    android:text="PUBG VN"
+                    android:textSize="11sp"
+                    android:textColor="#FFFFFF"
+                    android:background="#2563EB"
+                    android:backgroundTint="#2563EB" />
+
+                <Button
+                    android:id="@+id/btn_launch_pubgglobal"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginLeft="5dp"
+                    android:text="PUBG Global"
+                    android:textSize="11sp"
+                    android:textColor="#FFFFFF"
+                    android:background="#1E40AF"
+                    android:backgroundTint="#1E40AF" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="2">
+
+                <Button
+                    android:id="@+id/btn_launch_lq"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginRight="5dp"
+                    android:text="Liên Quân VN"
+                    android:textSize="11sp"
+                    android:textColor="#FFFFFF"
+                    android:background="#8B5CF6"
+                    android:backgroundTint="#8B5CF6" />
+
+                <Button
+                    android:id="@+id/btn_launch_codm"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginLeft="5dp"
+                    android:text="COD Mobile"
+                    android:textSize="11sp"
+                    android:textColor="#FFFFFF"
+                    android:background="#F59E0B"
+                    android:backgroundTint="#F59E0B" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="* Cấp quyền vẽ lên ứng dụng khác (Overlay) để bong bóng menu nổi và tâm ảo hiện trực tiếp lên màn hình điện thoại khi chơi game."
+            android:textColor="#64748B"
+            android:textSize="10sp"
+            android:layout_marginTop="20dp"
+            android:gravity="center" />
+    </LinearLayout>
+</ScrollView>`
     },
     {
       name: 'styles.xml',

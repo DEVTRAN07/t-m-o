@@ -10,6 +10,7 @@ import { GamePreview } from './components/GamePreview';
 import { PresetsManager } from './components/PresetsManager';
 import { SecurityPolicies } from './components/SecurityPolicies';
 import { AIOptimizerHub } from './components/AIOptimizerHub';
+import { AideExporter } from './components/AideExporter';
 import { ShieldCheck, Zap, Info, Smartphone, FileText, Target } from 'lucide-react';
 
 export default function App() {
@@ -135,10 +136,13 @@ export default function App() {
             {/* 1. Live Interactive Battlefield Simulator */}
             <GamePreview config={config} onChangeConfig={setConfig} />
 
-            {/* 2. Security policies, terms and developer details */}
+            {/* 2. Real-time AIDE source code publication & downloader */}
+            <AideExporter config={config} />
+
+            {/* 3. Security policies, terms and developer details */}
             <SecurityPolicies />
 
-            {/* 3. AI Hardware Optimizer & Sensitivity Calibration Panel */}
+            {/* 4. AI Hardware Optimizer & Sensitivity Calibration Panel */}
             <AIOptimizerHub />
 
           </div>

@@ -489,17 +489,61 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ config, onChangeConfig
     const isAndroid = /Android/i.test(navigator.userAgent);
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+    // Phát hiện In-App Browser (như Messenger, Zalo, TikTok, WeChat, v.v...)
+    const isInAppBrowser = /FBAN|FBAV|Instagram|Messenger|Zalo|MicroMessenger|TikTok|Line/i.test(navigator.userAgent);
+    if (isInAppBrowser) {
+      alert(`⚠️ CẢNH BÁO: Trình duyệt tích hợp của Zalo/Facebook/TikTok đang CHẶN lệnh mở game trực tiếp!\n\nBạn hãy nhấp vào dấu 3 chấm góc phải phía trên màn hình và chọn "MỞ BẰNG TRÌNH DUYỆT CHROME/SAFARI" để tự động kích hoạt game thành công nhé!`);
+    }
+
+    const isSandboxIframe = window.self !== window.top;
+
     if (isAndroid) {
-      const intentUrl = `intent://#Intent;package=${packageId};scheme=${scheme};end;`;
-      window.location.href = intentUrl;
-    } else if (isIOS) {
-      const iosUrl = `${scheme}://`;
-      window.location.href = iosUrl;
+      // Thử chạy trực tiếp thông qua URI Scheme thông thường
+      const directUrl = `${scheme}://`;
+      // Thử chạy thông qua Chrome Intent để vượt rào một số trình duyệt
+      const fallbackStoreUrl = `https://play.google.com/store/apps/details?id=${packageId}`;
+      const intentUrl = `intent://#Intent;package=${packageId};scheme=${scheme};S.browser_fallback_url=${encodeURIComponent(fallbackStoreUrl)};end;`;
+
+      try {
+        window.location.href = directUrl;
+      } catch (e) {
+        console.error(e);
+      }
+
+      // Thử dự phòng bằng Intent sau 300ms
+      setTimeout(() => {
+        try {
+          window.location.href = intentUrl;
+        } catch (e) {
+          console.error(e);
+        }
+      }, 300);
+
+      // Nếu sau 3 giây vẫn ở trang web (tức là không mở được game, và có thể chưa cài game hoặc lỗi)
       setTimeout(() => {
         if (document.visibilityState === 'visible') {
-          window.location.href = appStoreUrl;
+          // Chỉ chuyển đến cửa hàng nếu không ở trong sandbox iframe (iframe sẽ bị sandbox chặn)
+          if (!isSandboxIframe) {
+            window.location.href = fallbackStoreUrl;
+          }
         }
-      }, 2000);
+      }, 3000);
+
+    } else if (isIOS) {
+      const iosUrl = `${scheme}://`;
+      try {
+        window.location.href = iosUrl;
+      } catch (e) {
+        console.error(e);
+      }
+
+      setTimeout(() => {
+        if (document.visibilityState === 'visible') {
+          if (!isSandboxIframe) {
+            window.location.href = appStoreUrl;
+          }
+        }
+      }, 2500);
     } else {
       const fallbackUrl = `https://play.google.com/store/apps/details?id=${packageId}`;
       window.open(fallbackUrl, '_blank');
@@ -675,18 +719,18 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ config, onChangeConfig
           </p>
         </div>
         
-        {/* Mock UI Toggle */}
+        {/* Mock UI Toggle -> Calibration Grid Toggle */}
         <div className="flex items-center gap-3">
-          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Hiển thị:</label>
+          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Hiển thị lưới:</label>
           <button
             onClick={() => setShowMockUi(!showMockUi)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
               showMockUi 
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
                 : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
             }`}
           >
-            {showMockUi ? 'Hiện HUD nút bấm' : 'Ẩn HUD nút bấm'}
+            {showMockUi ? 'Ẩn vạch căn tâm' : 'Hiện vạch căn tâm'}
           </button>
         </div>
       </div>
@@ -778,22 +822,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ config, onChangeConfig
             </span>
           </div>
 
-          {/* Simulated Enemies/Targets */}
-          <div className="absolute top-[30%] left-[40%] text-center animate-bounce duration-1000 opacity-60">
-            <div className="w-8 h-12 bg-red-600/30 border border-red-500/60 rounded-full flex items-center justify-center text-[10px] text-white font-mono">
-              EnemY
-            </div>
-            <div className="text-[9px] text-red-400 font-mono mt-1">115m</div>
-          </div>
-
-          <div className="absolute top-[45%] left-[62%] text-center opacity-40">
-            <div className="w-7 h-10 bg-red-600/20 border border-red-500/40 rounded-full flex items-center justify-center text-[10px] text-white font-mono">
-              EnemY
-            </div>
-            <div className="text-[9px] text-red-400 font-mono mt-1">190m</div>
-          </div>
-
-          {/* Scope Ring simulation when aiming */}
+          {/* Aiming Scope Ring simulation */}
           {animState === 'aiming' && (
             <div className="absolute inset-0 rounded-full border-[60px] md:border-[120px] border-black/85 flex items-center justify-center animate-fade-in pointer-events-none">
               <div className="w-full h-full border-4 border-slate-800/80 rounded-full flex items-center justify-center">
@@ -802,57 +831,20 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ config, onChangeConfig
             </div>
           )}
 
-          {/* Custom overlays for different games to build realism */}
+          {/* Centering Calibration Grid for precise visual lock */}
           {showMockUi && (
-            <>
-              {/* Game name & Health Bar HUD */}
-              <div className="absolute top-4 left-6 pointer-events-none flex items-center gap-3">
-                <div className="bg-black/40 backdrop-blur-sm self-start px-3 py-1 rounded border border-white/10 text-xs font-mono text-white tracking-widest uppercase">
-                  {activeBg.type.toUpperCase()}_STAGE
-                </div>
-                {/* Health bar mockup */}
-                <div className="flex flex-col gap-1">
-                  <div className="text-[9px] text-slate-300 font-bold tracking-wider">Máu: 200/200</div>
-                  <div className="w-28 h-2 bg-slate-800 rounded-full overflow-hidden border border-white/10">
-                    <div className="h-full bg-emerald-500 w-full" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Ammo status HUD */}
-              <div className="absolute bottom-4 right-6 pointer-events-none text-right">
-                <div className="text-2xl font-bold font-mono text-white tracking-tight">30<span className="text-xs text-slate-400">/120</span></div>
-                <div className="text-[10px] font-semibold text-amber-500 font-mono tracking-wider">CAR-98 SNIPER</div>
-              </div>
-
-              {/* Simulated Left Joystick */}
-              <div className="absolute bottom-10 left-12 w-24 h-24 rounded-full border border-white/20 bg-black/20 backdrop-blur-[2px] flex items-center justify-center pointer-events-none blur-[0.3px]">
-                <div className="w-10 h-10 rounded-full bg-white/30 border border-white/40 shadow-md transform -translate-x-1 -translate-y-2" />
-              </div>
-
-              {/* Simulated Fire Button (Right) */}
-              <button
-                onClick={handleFireClick}
-                onTouchStart={handleFireClick}
-                className="absolute right-12 bottom-12 w-16 h-16 rounded-full border-2 border-orange-500/50 bg-gradient-to-br from-orange-600/40 to-red-600/50 flex items-center justify-center shadow-lg hover:brightness-125 active:scale-95 transition-all text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-              >
-                <div className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center bg-black/10">
-                  <span className="text-[10px] font-black tracking-widest text-white">BẮN</span>
-                </div>
-              </button>
-
-              {/* Scope/Aim button (Right high) */}
-              <button
-                onClick={handleAimClick}
-                className={`absolute right-32 bottom-20 w-12 h-12 rounded-full border flex items-center justify-center transition-all ${
-                  animState === 'aiming'
-                    ? 'border-emerald-500 bg-emerald-600/40 text-white'
-                    : 'border-white/20 bg-black/40 text-slate-300 hover:text-white'
-                }`}
-              >
-                <Target className="h-5 w-5" />
-              </button>
-            </>
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-0">
+              {/* Vertical guideline */}
+              <div className="absolute w-[1.5px] h-full bg-emerald-500/25" />
+              {/* Horizontal guideline */}
+              <div className="absolute h-[1.5px] w-full bg-emerald-500/25" />
+              {/* Center target circle guidelines */}
+              <div className="absolute w-24 h-24 rounded-full border border-dashed border-emerald-500/20 animate-pulse duration-[3000ms]" />
+              <div className="absolute w-48 h-48 rounded-full border border-dashed border-emerald-500/10" />
+              <span className="absolute top-4 right-4 text-[9px] font-mono text-emerald-400 bg-slate-950/80 px-2 py-0.5 rounded border border-emerald-500/25 tracking-wider uppercase select-none">
+                Lưới căn tâm: ON
+              </span>
+            </div>
           )}
 
           {/* Dynamic Crosshair Render Container */}
@@ -1373,6 +1365,49 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ config, onChangeConfig
                   <Play className="h-4 w-4 text-white fill-white animate-pulse" />
                   BẤM VÀO GAME NGAY 🚀
                 </button>
+              </div>
+
+              {/* Hướng dẫn khắc phục lỗi không mở được game khi dùng điện thoại */}
+              <div className="mt-3 pt-2.5 border-t border-slate-900 space-y-2">
+                <div className="flex gap-1.5 items-start text-amber-400 bg-amber-500/10 rounded-lg p-2 border border-amber-500/20">
+                  <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div className="text-[9.5px] leading-relaxed text-slate-300">
+                    <p className="font-bold text-amber-400 uppercase text-[9px] mb-0.5">⚠️ LƯU Ý KHI KHÔNG VÀO ĐƯỢC GAME:</p>
+                    <p className="mb-1">
+                      Nếu mở link này trong hộp chat <strong className="text-white font-semibold">Zalo, Facebook, Messenger, TikTok</strong>... trình duyệt gốc của các ứng dụng này sẽ <span className="text-red-400 font-semibold uppercase">chặn</span> thao tác mở game.
+                    </p>
+                    <p className="font-bold text-emerald-400">
+                      💡 Mẹo khắc phục: Nhấn nút 3 chấm (...) góc trên bên phải màn hình điện thoại của bạn ➔ Chọn "Mở bằng trình duyệt Safari/Chrome" để tự kích hoạt mở game mượt mượt nhất!
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-1.5 items-start text-indigo-400 bg-indigo-500/10 rounded-lg p-2 border border-indigo-500/20">
+                  <Smartphone className="h-4 w-4 shrink-0 mt-0.5 text-indigo-400" />
+                  <div className="text-[9.5px] leading-relaxed text-slate-300">
+                    <p className="font-bold text-indigo-400 uppercase text-[9px] mb-0.5">📱 TẠI SAO CHƯA HIỆN TÂM NGOÀI MÀN HÌNH MÁY?</p>
+                    <p className="mb-1">
+                      Bạn đang chạy phiên bản <strong className="text-white">Trang Web (React/Vite)</strong>. Vì lý do bảo mật hệ thống, Chrome và Safari trên điện thoại <strong className="text-red-400">KHÔNG CÓ quyền vẽ đè hệ thống (System Overlay)</strong> lên trên game khác. Tâm ảo và Menu nổi chỉ hoạt động trực quan trong khung giả lập của trang web này.
+                    </p>
+                    <p className="text-indigo-300 font-semibold mb-1">
+                      🎯 ĐỂ CÓ TÂM HIỆN TRÊN MÀN HÌNH GAME THẬT:
+                    </p>
+                    <ul className="list-disc pl-3.5 space-y-0.5 text-[9px] text-slate-400">
+                      <li>Tâm ảo cần chạy dưới dạng một ứng dụng Android gốc (.APK).</li>
+                      <li>Bạn cần nạp các tệp mã nguồn Java/XML được chuẩn bị sẵn trong nút xuất bản vào ứng dụng <strong className="text-white">AIDE (trên điện thoại)</strong> hoặc <strong className="text-white">Android Studio (trên máy tính)</strong> của bạn.</li>
+                      <li>Sau khi biên dịch thành công APK và cài đặt vào máy, hãy cấp quyền <strong className="text-emerald-400 font-medium">"Xuất hiện trên cùng" (Draw over other apps)</strong> cho ứng dụng để tâm ảo tự động vẽ đè mượt mà nhất giống hệt demo giả lập!</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {window.self !== window.top && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 text-blue-300 rounded-lg p-2 text-[9.5px] leading-relaxed">
+                    <p className="font-bold text-blue-400 uppercase text-[9px] mb-0.5">⚠️ TRÌNH XEM TRƯỚC HẠN CHẾ:</p>
+                    <p>
+                      Bạn đang chạy webapp bên trong khung xem trước của máy tính. Hãy bấm nút <span className="font-semibold text-white">MỞ TRONG TAB MỚI</span> để lấy link trang web chuyển sang điện thoại nhé!
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
