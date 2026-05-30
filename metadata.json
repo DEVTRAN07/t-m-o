@@ -1,0 +1,6 @@
+{
+  "name": "Tâm Ảo Crosshair Maker",
+  "description": "Ứng dụng thiết kế tâm ảo tùy biến và tạo mã nguồn Android (AIDE) hoàn chỉnh để xây dựng app Overlay Custom Crosshair cho các game mobile.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
